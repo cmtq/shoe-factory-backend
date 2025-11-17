@@ -50,9 +50,10 @@ export const getAllProducts = async (req: Request, res: Response) => {
 
         return {
           ...product,
-          category,
-          images,
-          inventory,
+          id: product._id,
+          category: category ? { ...category, id: category._id } : null,
+          images: images.map(img => ({ ...img, id: img._id })),
+          inventory: inventory.map(inv => ({ ...inv, id: inv._id })),
         };
       })
     );
@@ -94,9 +95,10 @@ export const getProductBySlug = async (req: Request, res: Response) => {
 
     res.json({
       ...product,
-      category,
-      images,
-      inventory,
+      id: product._id,
+      category: category ? { ...category, id: category._id } : null,
+      images: images.map(img => ({ ...img, id: img._id })),
+      inventory: inventory.map(inv => ({ ...inv, id: inv._id })),
     });
   } catch (error) {
     console.error('Error fetching product:', error);
@@ -107,7 +109,8 @@ export const getProductBySlug = async (req: Request, res: Response) => {
 export const createProduct = async (req: Request, res: Response) => {
   try {
     const product = await Product.create(req.body);
-    res.status(201).json(product);
+    const productObj = product.toObject();
+    res.status(201).json({ ...productObj, id: productObj._id });
   } catch (error) {
     console.error('Error creating product:', error);
     res.status(500).json({ error: 'Помилка при створенні товару' });
@@ -133,9 +136,10 @@ export const updateProduct = async (req: Request, res: Response) => {
 
     res.json({
       ...updatedProduct,
-      category,
-      images,
-      inventory,
+      id: updatedProduct._id,
+      category: category ? { ...category, id: category._id } : null,
+      images: images.map(img => ({ ...img, id: img._id })),
+      inventory: inventory.map(inv => ({ ...inv, id: inv._id })),
     });
   } catch (error) {
     console.error('Error updating product:', error);
