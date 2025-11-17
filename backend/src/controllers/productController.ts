@@ -3,62 +3,70 @@ import Product from '../models/Product';
 import ProductImage from '../models/ProductImage';
 import Category from '../models/Category';
 import Inventory from '../models/Inventory';
-import { Op } from 'sequelize';
 
 export const getAllProducts = async (req: Request, res: Response) => {
   try {
     const { categoryId, season, search, minPrice, maxPrice, page = 1, limit = 12 } = req.query;
 
-    const where: any = { isActive: true };
+    const filter: any = { isActive: true };
 
     if (categoryId) {
-      where.categoryId = categoryId;
+      filter.categoryId = categoryId;
     }
 
     if (search) {
-      where.name = { [Op.like]: `%${search}%` };
+      filter.name = { $regex: search, $options: 'i' };
     }
 
     if (minPrice || maxPrice) {
-      where.price = {};
-      if (minPrice) where.price[Op.gte] = minPrice;
-      if (maxPrice) where.price[Op.lte] = maxPrice;
+      filter.price = {};
+      if (minPrice) filter.price.$gte = Number(minPrice);
+      if (maxPrice) filter.price.$lte = Number(maxPrice);
     }
 
     const offset = (Number(page) - 1) * Number(limit);
 
-    const { count, rows: products } = await Product.findAndCountAll({
-      where,
-      include: [
-        {
-          model: Category,
-          as: 'category',
-          where: season ? { season } : undefined,
-        },
-        {
-          model: ProductImage,
-          as: 'images',
-          where: { isMain: true },
-          required: false,
-        },
-        {
-          model: Inventory,
-          as: 'inventory',
-          attributes: ['size', 'quantity'],
-        },
-      ],
-      limit: Number(limit),
-      offset,
-      order: [['createdAt', 'DESC']],
-    });
+    let query = Product.find(filter)
+      .limit(Number(limit))
+      .skip(offset)
+      .sort({ createdAt: -1 });
+
+    const products = await query.lean();
+
+    // Get category, images, and inventory for each product
+    const productsWithDetails = await Promise.all(
+      products.map(async (product: any) => {
+        const category = await Category.findById(product.categoryId).lean();
+
+        // Filter by season if needed
+        if (season && category && category.season !== season && category.season !== 'all-season') {
+          return null;
+        }
+
+        const images = await ProductImage.find({ productId: product._id, isMain: true }).lean();
+        const inventory = await Inventory.find({ productId: product._id })
+          .select('size quantity')
+          .lean();
+
+        return {
+          ...product,
+          category,
+          images,
+          inventory,
+        };
+      })
+    );
+
+    const filteredProducts = productsWithDetails.filter((p) => p !== null);
+    const total = await Product.countDocuments(filter);
 
     res.json({
-      products,
+      products: filteredProducts,
       pagination: {
-        total: count,
+        total,
         page: Number(page),
         limit: Number(limit),
-        totalPages: Math.ceil(count / Number(limit)),
+        totalPages: Math.ceil(total / Number(limit)),
       },
     });
   } catch (error) {
@@ -70,31 +78,26 @@ export const getAllProducts = async (req: Request, res: Response) => {
 export const getProductBySlug = async (req: Request, res: Response) => {
   try {
     const { slug } = req.params;
-    const product = await Product.findOne({
-      where: { slug, isActive: true },
-      include: [
-        {
-          model: Category,
-          as: 'category',
-        },
-        {
-          model: ProductImage,
-          as: 'images',
-          order: [['sortOrder', 'ASC']],
-        },
-        {
-          model: Inventory,
-          as: 'inventory',
-          attributes: ['size', 'quantity', 'reservedQuantity'],
-        },
-      ],
-    });
+    const product = await Product.findOne({ slug, isActive: true }).lean();
 
     if (!product) {
       return res.status(404).json({ error: 'Товар не знайдено' });
     }
 
-    res.json(product);
+    const category = await Category.findById(product.categoryId).lean();
+    const images = await ProductImage.find({ productId: product._id })
+      .sort({ sortOrder: 1 })
+      .lean();
+    const inventory = await Inventory.find({ productId: product._id })
+      .select('size quantity reservedQuantity')
+      .lean();
+
+    res.json({
+      ...product,
+      category,
+      images,
+      inventory,
+    });
   } catch (error) {
     console.error('Error fetching product:', error);
     res.status(500).json({ error: 'Помилка при отриманні товару' });
@@ -114,22 +117,26 @@ export const createProduct = async (req: Request, res: Response) => {
 export const updateProduct = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const [updated] = await Product.update(req.body, {
-      where: { id },
-    });
+    const updatedProduct = await Product.findByIdAndUpdate(
+      id,
+      req.body,
+      { new: true, runValidators: true }
+    ).lean();
 
-    if (!updated) {
+    if (!updatedProduct) {
       return res.status(404).json({ error: 'Товар не знайдено' });
     }
 
-    const updatedProduct = await Product.findByPk(id, {
-      include: [
-        { model: Category, as: 'category' },
-        { model: ProductImage, as: 'images' },
-        { model: Inventory, as: 'inventory' },
-      ],
+    const category = await Category.findById(updatedProduct.categoryId).lean();
+    const images = await ProductImage.find({ productId: updatedProduct._id }).lean();
+    const inventory = await Inventory.find({ productId: updatedProduct._id }).lean();
+
+    res.json({
+      ...updatedProduct,
+      category,
+      images,
+      inventory,
     });
-    res.json(updatedProduct);
   } catch (error) {
     console.error('Error updating product:', error);
     res.status(500).json({ error: 'Помилка при оновленні товару' });
@@ -139,7 +146,7 @@ export const updateProduct = async (req: Request, res: Response) => {
 export const deleteProduct = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    await Product.update({ isActive: false }, { where: { id } });
+    await Product.findByIdAndUpdate(id, { isActive: false });
     res.json({ message: 'Товар видалено' });
   } catch (error) {
     console.error('Error deleting product:', error);

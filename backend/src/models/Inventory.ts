@@ -1,75 +1,44 @@
-import { DataTypes, Model, Optional } from 'sequelize';
-import sequelize from '../config/database';
-import Product from './Product';
+import { Schema, model, Document, Types } from 'mongoose';
 
-interface InventoryAttributes {
-  id: number;
-  productId: number;
+export interface IInventory extends Document {
+  productId: Types.ObjectId;
   size: number;
   quantity: number;
   reservedQuantity: number;
-  createdAt?: Date;
-  updatedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-interface InventoryCreationAttributes extends Optional<InventoryAttributes, 'id' | 'reservedQuantity' | 'createdAt' | 'updatedAt'> {}
-
-class Inventory extends Model<InventoryAttributes, InventoryCreationAttributes> implements InventoryAttributes {
-  public id!: number;
-  public productId!: number;
-  public size!: number;
-  public quantity!: number;
-  public reservedQuantity!: number;
-
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
-}
-
-Inventory.init(
+const inventorySchema = new Schema<IInventory>(
   {
-    id: {
-      type: DataTypes.INTEGER,
-      autoIncrement: true,
-      primaryKey: true,
-    },
     productId: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'products',
-        key: 'id',
-      },
+      type: Schema.Types.ObjectId,
+      ref: 'Product',
+      required: true,
     },
     size: {
-      type: DataTypes.DECIMAL(4, 1),
-      allowNull: false,
+      type: Number,
+      required: true,
     },
     quantity: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 0,
+      type: Number,
+      required: true,
+      default: 0,
     },
     reservedQuantity: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 0,
+      type: Number,
+      required: true,
+      default: 0,
     },
   },
   {
-    sequelize,
-    tableName: 'inventory',
     timestamps: true,
-    indexes: [
-      {
-        unique: true,
-        fields: ['productId', 'size'],
-      },
-    ],
   }
 );
 
-// Associations
-Inventory.belongsTo(Product, { foreignKey: 'productId', as: 'product' });
-Product.hasMany(Inventory, { foreignKey: 'productId', as: 'inventory' });
+// Create unique compound index for productId and size
+inventorySchema.index({ productId: 1, size: 1 }, { unique: true });
+
+const Inventory = model<IInventory>('Inventory', inventorySchema);
 
 export default Inventory;

@@ -1,24 +1,27 @@
-import { Sequelize } from 'sequelize';
+import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const sequelize = new Sequelize({
-  host: process.env.DB_HOST || 'shoe-factory-mysql-l6j7r9',
-  port: parseInt(process.env.DB_PORT || '3306'),
-  username: process.env.DB_USER || 'mysql',
-  password: process.env.DB_PASSWORD || 'kmy357lm68k0dgy7',
-  database: process.env.DB_NAME || 'mysql',
-  dialect: 'mysql',
-  logging: process.env.DB_LOGGING === 'true' ? (sql) => {
-    console.log('🔵 SQL:', sql);
-  } : false,
-  pool: {
-    max: 5,
-    min: 0,
-    acquire: 30000,
-    idle: 10000
-  }
-});
+const DB_USER = process.env.DB_USER || 'mongo';
+const DB_PASSWORD = process.env.DB_PASSWORD || 'rb60kgnntzywhuw3';
+const DB_HOST = process.env.DB_HOST || 'shoe-factory-database-uatbqk';
+const DB_PORT = process.env.DB_PORT || '27017';
+const DB_NAME = process.env.DB_NAME || 'shoe_factory';
 
-export default sequelize;
+const MONGODB_URI = `mongodb://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?authSource=admin`;
+
+const connectDB = async () => {
+  try {
+    await mongoose.connect(MONGODB_URI);
+    console.log('✅ MongoDB connection established successfully');
+    console.log(`   Database: ${DB_NAME}`);
+    console.log(`   Host: ${DB_HOST}:${DB_PORT}`);
+  } catch (error) {
+    console.error('❌ MongoDB connection error:', error);
+    throw error;
+  }
+};
+
+export default connectDB;
+export { mongoose };

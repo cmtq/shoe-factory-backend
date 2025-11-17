@@ -4,15 +4,20 @@ import Product from '../models/Product';
 
 export const getAllCategories = async (req: Request, res: Response) => {
   try {
-    const categories = await Category.findAll({
-      where: { isActive: true },
-      include: [{
-        model: Product,
-        as: 'products',
-        attributes: ['id'],
-      }],
-    });
-    res.json(categories);
+    const categories = await Category.find({ isActive: true }).lean();
+
+    // Count products for each category
+    const categoriesWithCount = await Promise.all(
+      categories.map(async (category) => {
+        const productCount = await Product.countDocuments({ categoryId: category._id });
+        return {
+          ...category,
+          productCount,
+        };
+      })
+    );
+
+    res.json(categoriesWithCount);
   } catch (error) {
     console.error('Error fetching categories:', error);
     res.status(500).json({ error: 'Помилка при отриманні категорій' });
@@ -22,9 +27,7 @@ export const getAllCategories = async (req: Request, res: Response) => {
 export const getCategoryBySlug = async (req: Request, res: Response) => {
   try {
     const { slug } = req.params;
-    const category = await Category.findOne({
-      where: { slug, isActive: true },
-    });
+    const category = await Category.findOne({ slug, isActive: true }).lean();
 
     if (!category) {
       return res.status(404).json({ error: 'Категорію не знайдено' });
@@ -50,15 +53,16 @@ export const createCategory = async (req: Request, res: Response) => {
 export const updateCategory = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const [updated] = await Category.update(req.body, {
-      where: { id },
-    });
+    const updatedCategory = await Category.findByIdAndUpdate(
+      id,
+      req.body,
+      { new: true, runValidators: true }
+    );
 
-    if (!updated) {
+    if (!updatedCategory) {
       return res.status(404).json({ error: 'Категорію не знайдено' });
     }
 
-    const updatedCategory = await Category.findByPk(id);
     res.json(updatedCategory);
   } catch (error) {
     console.error('Error updating category:', error);
@@ -69,7 +73,7 @@ export const updateCategory = async (req: Request, res: Response) => {
 export const deleteCategory = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    await Category.update({ isActive: false }, { where: { id } });
+    await Category.findByIdAndUpdate(id, { isActive: false });
     res.json({ message: 'Категорію видалено' });
   } catch (error) {
     console.error('Error deleting category:', error);

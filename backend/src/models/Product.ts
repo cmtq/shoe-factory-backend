@@ -1,10 +1,7 @@
-import { DataTypes, Model, Optional } from 'sequelize';
-import sequelize from '../config/database';
-import Category from './Category';
+import { Schema, model, Document, Types } from 'mongoose';
 
-interface ProductAttributes {
-  id: number;
-  categoryId: number;
+export interface IProduct extends Document {
+  categoryId: Types.ObjectId;
   name: string;
   slug: string;
   description?: string;
@@ -13,86 +10,56 @@ interface ProductAttributes {
   sku?: string;
   isActive: boolean;
   isCustomizable: boolean;
-  createdAt?: Date;
-  updatedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-interface ProductCreationAttributes extends Optional<ProductAttributes, 'id' | 'description' | 'discountPrice' | 'sku' | 'isActive' | 'isCustomizable' | 'createdAt' | 'updatedAt'> {}
-
-class Product extends Model<ProductAttributes, ProductCreationAttributes> implements ProductAttributes {
-  public id!: number;
-  public categoryId!: number;
-  public name!: string;
-  public slug!: string;
-  public description?: string;
-  public price!: number;
-  public discountPrice?: number;
-  public sku?: string;
-  public isActive!: boolean;
-  public isCustomizable!: boolean;
-
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
-}
-
-Product.init(
+const productSchema = new Schema<IProduct>(
   {
-    id: {
-      type: DataTypes.INTEGER,
-      autoIncrement: true,
-      primaryKey: true,
-    },
     categoryId: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'categories',
-        key: 'id',
-      },
+      type: Schema.Types.ObjectId,
+      ref: 'Category',
+      required: true,
     },
     name: {
-      type: DataTypes.STRING,
-      allowNull: false,
+      type: String,
+      required: true,
     },
     slug: {
-      type: DataTypes.STRING,
-      allowNull: false,
+      type: String,
+      required: true,
       unique: true,
     },
     description: {
-      type: DataTypes.TEXT,
-      allowNull: true,
+      type: String,
+      required: false,
     },
     price: {
-      type: DataTypes.DECIMAL(10, 2),
-      allowNull: false,
+      type: Number,
+      required: true,
     },
     discountPrice: {
-      type: DataTypes.DECIMAL(10, 2),
-      allowNull: true,
+      type: Number,
+      required: false,
     },
     sku: {
-      type: DataTypes.STRING,
-      allowNull: true,
+      type: String,
+      required: false,
     },
     isActive: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: true,
+      type: Boolean,
+      default: true,
     },
     isCustomizable: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: false,
+      type: Boolean,
+      default: false,
     },
   },
   {
-    sequelize,
-    tableName: 'products',
     timestamps: true,
   }
 );
 
-// Associations
-Product.belongsTo(Category, { foreignKey: 'categoryId', as: 'category' });
-Category.hasMany(Product, { foreignKey: 'categoryId', as: 'products' });
+const Product = model<IProduct>('Product', productSchema);
 
 export default Product;

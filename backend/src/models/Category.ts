@@ -1,71 +1,50 @@
-import { DataTypes, Model, Optional } from 'sequelize';
-import sequelize from '../config/database';
+import { Schema, model, Document } from 'mongoose';
 
-interface CategoryAttributes {
-  id: number;
+export interface ICategory extends Document {
   name: string;
   slug: string;
   description?: string;
   season?: 'summer' | 'winter' | 'spring' | 'autumn' | 'all-season';
   image?: string;
   isActive: boolean;
-  createdAt?: Date;
-  updatedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-interface CategoryCreationAttributes extends Optional<CategoryAttributes, 'id' | 'description' | 'season' | 'image' | 'isActive' | 'createdAt' | 'updatedAt'> {}
-
-class Category extends Model<CategoryAttributes, CategoryCreationAttributes> implements CategoryAttributes {
-  public id!: number;
-  public name!: string;
-  public slug!: string;
-  public description?: string;
-  public season?: 'summer' | 'winter' | 'spring' | 'autumn' | 'all-season';
-  public image?: string;
-  public isActive!: boolean;
-
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
-}
-
-Category.init(
+const categorySchema = new Schema<ICategory>(
   {
-    id: {
-      type: DataTypes.INTEGER,
-      autoIncrement: true,
-      primaryKey: true,
-    },
     name: {
-      type: DataTypes.STRING,
-      allowNull: false,
+      type: String,
+      required: true,
     },
     slug: {
-      type: DataTypes.STRING,
-      allowNull: false,
+      type: String,
+      required: true,
       unique: true,
     },
     description: {
-      type: DataTypes.TEXT,
-      allowNull: true,
+      type: String,
+      required: false,
     },
     season: {
-      type: DataTypes.ENUM('summer', 'winter', 'spring', 'autumn', 'all-season'),
-      allowNull: true,
+      type: String,
+      enum: ['summer', 'winter', 'spring', 'autumn', 'all-season'],
+      required: false,
     },
     image: {
-      type: DataTypes.STRING,
-      allowNull: true,
+      type: String,
+      required: false,
     },
     isActive: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: true,
+      type: Boolean,
+      default: true,
     },
   },
   {
-    sequelize,
-    tableName: 'categories',
     timestamps: true,
   }
 );
+
+const Category = model<ICategory>('Category', categorySchema);
 
 export default Category;
