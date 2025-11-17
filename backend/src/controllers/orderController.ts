@@ -142,9 +142,11 @@ export const createOrder = async (req: Request, res: Response) => {
       }
 
       // Reserve inventory
+      const updateOptions = useTransactions && session ? { session } : {};
       await Inventory.findOneAndUpdate(
         { productId: item.productId, size: item.size },
-        { $inc: { reservedQuantity: item.quantity } }
+        { $inc: { reservedQuantity: item.quantity } },
+        updateOptions
       );
     }
 
