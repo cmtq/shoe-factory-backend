@@ -4,20 +4,35 @@ import Product from '../models/Product';
 import ProductImage from '../models/ProductImage';
 import Inventory from '../models/Inventory';
 
+// Enable SQL logging for this seed script
+(sequelize as any).options.logging = (sql: string) => {
+  console.log('   🔵 SQL:', sql);
+};
+
 const seedData = async () => {
   try {
     console.log('🌱 Початок заповнення бази даних...');
+    console.log('═══════════════════════════════════════════════════════════════');
 
     // Connect to database
+    console.log('\n📡 Підключення до бази даних...');
+    console.log(`   Database: ${sequelize.config.database}`);
+    console.log(`   Host: ${sequelize.config.host}`);
+    console.log(`   Port: ${sequelize.config.port}`);
+    console.log(`   User: ${sequelize.config.username}`);
+    console.log(`   Password: ${'*'.repeat((sequelize.config.password as string)?.length || 0)}`);
+
     await sequelize.authenticate();
     console.log('✅ Підключено до бази даних');
 
     // Sync models
+    console.log('\n🔨 Синхронізація моделей (force: true - видалення старих таблиць)...');
     await sequelize.sync({ force: true });
     console.log('✅ Таблиці створено');
 
     // Create categories
-    const categories = await Category.bulkCreate([
+    console.log('\n📁 Створення категорій...');
+    const categoriesData = [
       {
         name: 'Чоловіче взуття',
         slug: 'choloviche-vzuttya',
@@ -53,12 +68,23 @@ const seedData = async () => {
         season: 'all-season',
         isActive: true,
       },
-    ]);
+    ];
 
+    console.log(`   Дані для вставки: ${categoriesData.length} категорій`);
+    const categories = await (Category as any).bulkCreate(categoriesData);
     console.log('✅ Створено категорії');
+    console.log(`   Результат: ${categories.length} записів`);
+    categories.forEach((cat: any, idx: number) => {
+      console.log(`   ${idx + 1}. ID: ${cat.id} | Назва: ${cat.name} | Slug: ${cat.slug}`);
+    });
+
+    // Verify categories in DB
+    const categoryCount = await (Category as any).count();
+    console.log(`   🔍 Перевірка в БД: знайдено ${categoryCount} категорій`);
 
     // Create products
-    const products = await Product.bulkCreate([
+    console.log('\n👟 Створення товарів...');
+    const productsData = [
       // Чоловіче взуття
       {
         categoryId: categories[0].id,
@@ -194,13 +220,31 @@ const seedData = async () => {
         isActive: true,
         isCustomizable: false,
       },
-    ]);
+    ];
 
+    console.log(`   Дані для вставки: ${productsData.length} товарів`);
+    productsData.forEach((p: any, idx: number) => {
+      console.log(`   ${idx + 1}. CategoryID: ${p.categoryId} | SKU: ${p.sku} | Назва: ${p.name} | Ціна: ${p.price}`);
+    });
+
+    const products = await (Product as any).bulkCreate(productsData);
     console.log('✅ Створено товари');
+    console.log(`   Результат: ${products.length} записів`);
+    products.forEach((prod: any, idx: number) => {
+      console.log(`   ${idx + 1}. ID: ${prod.id} | SKU: ${prod.sku} | Назва: ${prod.name}`);
+    });
+
+    // Verify products in DB
+    const productCount = await (Product as any).count();
+    console.log(`   🔍 Перевірка в БД: знайдено ${productCount} товарів`);
 
     // Create product images (demo URLs)
-    const imagePromises = products.map((product, index) => {
-      return ProductImage.bulkCreate([
+    console.log('\n📸 Створення фото товарів...');
+    console.log(`   Створення по 3 фото для кожного з ${products.length} товарів...`);
+
+    const imagePromises = products.map((product: any, index: number) => {
+      console.log(`   Товар ${index + 1}/${products.length}: ID ${product.id} - ${product.name}`);
+      return (ProductImage as any).bulkCreate([
         {
           productId: product.id,
           imageUrl: `https://via.placeholder.com/500x500?text=${encodeURIComponent(product.name)}+1`,
@@ -225,36 +269,118 @@ const seedData = async () => {
       ]);
     });
 
-    await Promise.all(imagePromises);
+    const imageResults = await Promise.all(imagePromises);
     console.log('✅ Додано фото товарів');
+    console.log(`   Результат: ${imageResults.length} товарів, по 3 фото = ${imageResults.length * 3} фото`);
+
+    // Verify images in DB
+    const imageCount = await (ProductImage as any).count();
+    console.log(`   🔍 Перевірка в БД: знайдено ${imageCount} фото`);
 
     // Create inventory
+    console.log('\n📦 Створення записів наявності товарів...');
     const inventoryData = [];
     const sizes = [36, 37, 38, 39, 40, 41, 42, 43, 44, 45];
 
+    console.log(`   Розміри: ${sizes.join(', ')}`);
+    console.log(`   Товарів: ${products.length}`);
+    console.log(`   Очікується записів: ${products.length * sizes.length}`);
+
     for (const product of products) {
       for (const size of sizes) {
+        const quantity = Math.floor(Math.random() * 20) + 5;
         inventoryData.push({
           productId: product.id,
           size,
-          quantity: Math.floor(Math.random() * 20) + 5, // Random quantity 5-25
+          quantity,
           reservedQuantity: 0,
         });
       }
+      console.log(`   Товар ID ${product.id} (${product.name}): додано ${sizes.length} розмірів`);
     }
 
-    await Inventory.bulkCreate(inventoryData);
+    console.log(`   Підготовлено ${inventoryData.length} записів для вставки`);
+    const inventoryResult = await (Inventory as any).bulkCreate(inventoryData);
     console.log('✅ Додано наявність товарів');
+    console.log(`   Результат: ${inventoryResult.length} записів`);
 
+    // Verify inventory in DB
+    const inventoryCount = await (Inventory as any).count();
+    console.log(`   🔍 Перевірка в БД: знайдено ${inventoryCount} записів наявності`);
+
+    console.log('\n═══════════════════════════════════════════════════════════════');
     console.log('🎉 База даних успішно заповнена!');
-    console.log(`   Категорій: ${categories.length}`);
-    console.log(`   Товарів: ${products.length}`);
-    console.log(`   Фото: ${products.length * 3}`);
-    console.log(`   Записів наявності: ${inventoryData.length}`);
+    console.log('═══════════════════════════════════════════════════════════════');
+    console.log(`   Категорій: ${categories.length} (в БД: ${categoryCount})`);
+    console.log(`   Товарів: ${products.length} (в БД: ${productCount})`);
+    console.log(`   Фото: ${products.length * 3} (в БД: ${imageCount})`);
+    console.log(`   Записів наявності: ${inventoryData.length} (в БД: ${inventoryCount})`);
+
+    // Final verification - show actual data from DB
+    console.log('\n═══════════════════════════════════════════════════════════════');
+    console.log('🔍 ФІНАЛЬНА ПЕРЕВІРКА - Реальні дані з БД:');
+    console.log('═══════════════════════════════════════════════════════════════');
+
+    const allCategories = await (Category as any).findAll({ raw: true });
+    console.log('\n📁 Категорії в БД:');
+    if (allCategories.length === 0) {
+      console.log('   ⚠️  ПУСТО! Категорій немає в БД!');
+    } else {
+      allCategories.forEach((cat: any) => {
+        console.log(`   - ID: ${cat.id}, Назва: ${cat.name}, Slug: ${cat.slug}`);
+      });
+    }
+
+    const allProducts = await (Product as any).findAll({ raw: true, limit: 5 });
+    console.log('\n👟 Товари в БД (перші 5):');
+    if (allProducts.length === 0) {
+      console.log('   ⚠️  ПУСТО! Товарів немає в БД!');
+    } else {
+      allProducts.forEach((prod: any) => {
+        console.log(`   - ID: ${prod.id}, SKU: ${prod.sku}, Назва: ${prod.name}, CategoryID: ${prod.categoryId}`);
+      });
+    }
+
+    const allImages = await (ProductImage as any).findAll({ raw: true, limit: 5 });
+    console.log('\n📸 Фото в БД (перші 5):');
+    if (allImages.length === 0) {
+      console.log('   ⚠️  ПУСТО! Фото немає в БД!');
+    } else {
+      allImages.forEach((img: any) => {
+        console.log(`   - ID: ${img.id}, ProductID: ${img.productId}, Main: ${img.isMain}, URL: ${img.imageUrl.substring(0, 50)}...`);
+      });
+    }
+
+    const allInventory = await (Inventory as any).findAll({ raw: true, limit: 10 });
+    console.log('\n📦 Наявність в БД (перші 10):');
+    if (allInventory.length === 0) {
+      console.log('   ⚠️  ПУСТО! Записів наявності немає в БД!');
+    } else {
+      allInventory.forEach((inv: any) => {
+        console.log(`   - ID: ${inv.id}, ProductID: ${inv.productId}, Розмір: ${inv.size}, Кількість: ${inv.quantity}`);
+      });
+    }
+
+    console.log('\n═══════════════════════════════════════════════════════════════\n');
+
+    // Disconnect from database
+    await sequelize.close();
+    console.log('✅ З\'єднання з БД закрито');
 
     process.exit(0);
   } catch (error) {
-    console.error('❌ Помилка при заповненні бази даних:', error);
+    console.error('\n═══════════════════════════════════════════════════════════════');
+    console.error('❌ ПОМИЛКА при заповненні бази даних!');
+    console.error('═══════════════════════════════════════════════════════════════');
+    console.error('Тип помилки:', error instanceof Error ? error.constructor.name : typeof error);
+    console.error('Повідомлення:', error instanceof Error ? error.message : String(error));
+    if (error instanceof Error && error.stack) {
+      console.error('\nСтек викликів:');
+      console.error(error.stack);
+    }
+    console.error('\nПовний об\'єкт помилки:');
+    console.error(JSON.stringify(error, null, 2));
+    console.error('═══════════════════════════════════════════════════════════════\n');
     process.exit(1);
   }
 };
