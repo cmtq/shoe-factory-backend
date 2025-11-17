@@ -27,7 +27,17 @@ const seedData = async () => {
 
     // Sync models
     console.log('\n🔨 Синхронізація моделей (force: true - видалення старих таблиць)...');
+
+    // Disable foreign key checks to allow dropping tables with FK constraints
+    console.log('   Вимкнення перевірки зовнішніх ключів...');
+    await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');
+
     await sequelize.sync({ force: true });
+
+    // Re-enable foreign key checks
+    console.log('   Увімкнення перевірки зовнішніх ключів...');
+    await sequelize.query('SET FOREIGN_KEY_CHECKS = 1');
+
     console.log('✅ Таблиці створено');
 
     // Create categories
