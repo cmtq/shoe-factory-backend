@@ -1,73 +1,44 @@
-import { DataTypes, Model, Optional } from 'sequelize';
-import sequelize from '../config/database';
-import Product from './Product';
+import { Schema, model, Document, Types } from 'mongoose';
 
-interface ProductImageAttributes {
-  id: number;
-  productId: number;
+export interface IProductImage extends Document {
+  productId: Types.ObjectId;
   imageUrl: string;
   altText?: string;
   sortOrder: number;
   isMain: boolean;
-  createdAt?: Date;
-  updatedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-interface ProductImageCreationAttributes extends Optional<ProductImageAttributes, 'id' | 'altText' | 'sortOrder' | 'isMain' | 'createdAt' | 'updatedAt'> {}
-
-class ProductImage extends Model<ProductImageAttributes, ProductImageCreationAttributes> implements ProductImageAttributes {
-  public id!: number;
-  public productId!: number;
-  public imageUrl!: string;
-  public altText?: string;
-  public sortOrder!: number;
-  public isMain!: boolean;
-
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
-}
-
-ProductImage.init(
+const productImageSchema = new Schema<IProductImage>(
   {
-    id: {
-      type: DataTypes.INTEGER,
-      autoIncrement: true,
-      primaryKey: true,
-    },
     productId: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'products',
-        key: 'id',
-      },
+      type: Schema.Types.ObjectId,
+      ref: 'Product',
+      required: true,
     },
     imageUrl: {
-      type: DataTypes.STRING,
-      allowNull: false,
+      type: String,
+      required: true,
     },
     altText: {
-      type: DataTypes.STRING,
-      allowNull: true,
+      type: String,
+      required: false,
     },
     sortOrder: {
-      type: DataTypes.INTEGER,
-      defaultValue: 0,
+      type: Number,
+      default: 0,
     },
     isMain: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: false,
+      type: Boolean,
+      default: false,
     },
   },
   {
-    sequelize,
-    tableName: 'product_images',
     timestamps: true,
   }
 );
 
-// Associations
-ProductImage.belongsTo(Product, { foreignKey: 'productId', as: 'product' });
-Product.hasMany(ProductImage, { foreignKey: 'productId', as: 'images' });
+const ProductImage = model<IProductImage>('ProductImage', productImageSchema);
 
 export default ProductImage;

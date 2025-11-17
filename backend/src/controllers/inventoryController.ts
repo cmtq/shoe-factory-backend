@@ -5,17 +5,20 @@ import Product from '../models/Product';
 export const getInventoryByProduct = async (req: Request, res: Response) => {
   try {
     const { productId } = req.params;
-    const productIdNum = parseInt(productId, 10);
-    const inventory = await Inventory.findAll({
-      where: { productId: productIdNum },
-      include: [{
-        model: Product,
-        as: 'product',
-        attributes: ['id', 'name', 'sku'],
-      }],
-      order: [['size', 'ASC']],
-    });
-    res.json(inventory);
+    const inventory = await Inventory.find({ productId })
+      .sort({ size: 1 })
+      .lean();
+
+    const product = await Product.findById(productId)
+      .select('_id name sku')
+      .lean();
+
+    const inventoryWithProduct = inventory.map((inv) => ({
+      ...inv,
+      product,
+    }));
+
+    res.json(inventoryWithProduct);
   } catch (error) {
     console.error('Error fetching inventory:', error);
     res.status(500).json({ error: 'Помилка при отриманні наявності' });
@@ -24,15 +27,23 @@ export const getInventoryByProduct = async (req: Request, res: Response) => {
 
 export const getAllInventory = async (req: Request, res: Response) => {
   try {
-    const inventory = await Inventory.findAll({
-      include: [{
-        model: Product,
-        as: 'product',
-        attributes: ['id', 'name', 'sku'],
-      }],
-      order: [['productId', 'ASC'], ['size', 'ASC']],
-    });
-    res.json(inventory);
+    const inventory = await Inventory.find()
+      .sort({ productId: 1, size: 1 })
+      .lean();
+
+    const inventoryWithProducts = await Promise.all(
+      inventory.map(async (inv: any) => {
+        const product = await Product.findById(inv.productId)
+          .select('_id name sku')
+          .lean();
+        return {
+          ...inv,
+          product,
+        };
+      })
+    );
+
+    res.json(inventoryWithProducts);
   } catch (error) {
     console.error('Error fetching inventory:', error);
     res.status(500).json({ error: 'Помилка при отриманні наявності' });
@@ -44,16 +55,20 @@ export const updateInventory = async (req: Request, res: Response) => {
     const { productId, size } = req.params;
     const { quantity } = req.body;
 
-    const productIdNum = parseInt(productId, 10);
     const sizeNum = parseFloat(size);
 
-    const [inventory, created] = await Inventory.findOrCreate({
-      where: { productId: productIdNum, size: sizeNum },
-      defaults: { productId: productIdNum, size: sizeNum, quantity },
-    });
+    let inventory = await Inventory.findOne({ productId, size: sizeNum });
 
-    if (!created) {
-      await inventory.update({ quantity });
+    if (!inventory) {
+      inventory = await Inventory.create({
+        productId,
+        size: sizeNum,
+        quantity,
+        reservedQuantity: 0,
+      });
+    } else {
+      inventory.quantity = quantity;
+      await inventory.save();
     }
 
     res.json(inventory);
@@ -68,11 +83,23 @@ export const bulkUpdateInventory = async (req: Request, res: Response) => {
     const { items } = req.body; // Array of { productId, size, quantity }
 
     const updatePromises = items.map(async (item: any) => {
-      const [inventory] = await Inventory.findOrCreate({
-        where: { productId: item.productId, size: item.size },
-        defaults: { productId: item.productId, size: item.size, quantity: item.quantity },
+      let inventory = await Inventory.findOne({
+        productId: item.productId,
+        size: item.size,
       });
-      await inventory.update({ quantity: item.quantity });
+
+      if (!inventory) {
+        inventory = await Inventory.create({
+          productId: item.productId,
+          size: item.size,
+          quantity: item.quantity,
+          reservedQuantity: 0,
+        });
+      } else {
+        inventory.quantity = item.quantity;
+        await inventory.save();
+      }
+
       return inventory;
     });
 
@@ -87,11 +114,8 @@ export const bulkUpdateInventory = async (req: Request, res: Response) => {
 export const checkAvailability = async (req: Request, res: Response) => {
   try {
     const { productId, size } = req.params;
-    const productIdNum = parseInt(productId, 10);
     const sizeNum = parseFloat(size);
-    const inventory = await Inventory.findOne({
-      where: { productId: productIdNum, size: sizeNum },
-    });
+    const inventory = await Inventory.findOne({ productId, size: sizeNum });
 
     if (!inventory) {
       return res.json({ available: false, quantity: 0 });

@@ -1,8 +1,6 @@
-import { DataTypes, Model, Optional } from 'sequelize';
-import sequelize from '../config/database';
+import { Schema, model, Document } from 'mongoose';
 
-interface OrderAttributes {
-  id: number;
+export interface IOrder extends Document {
   orderNumber: string;
   customerName: string;
   customerEmail: string;
@@ -11,73 +9,52 @@ interface OrderAttributes {
   totalAmount: number;
   status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   notes?: string;
-  createdAt?: Date;
-  updatedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-interface OrderCreationAttributes extends Optional<OrderAttributes, 'id' | 'shippingAddress' | 'status' | 'notes' | 'createdAt' | 'updatedAt'> {}
-
-class Order extends Model<OrderAttributes, OrderCreationAttributes> implements OrderAttributes {
-  public id!: number;
-  public orderNumber!: string;
-  public customerName!: string;
-  public customerEmail!: string;
-  public customerPhone!: string;
-  public shippingAddress?: string;
-  public totalAmount!: number;
-  public status!: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  public notes?: string;
-
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
-}
-
-Order.init(
+const orderSchema = new Schema<IOrder>(
   {
-    id: {
-      type: DataTypes.INTEGER,
-      autoIncrement: true,
-      primaryKey: true,
-    },
     orderNumber: {
-      type: DataTypes.STRING,
-      allowNull: false,
+      type: String,
+      required: true,
       unique: true,
     },
     customerName: {
-      type: DataTypes.STRING,
-      allowNull: false,
+      type: String,
+      required: true,
     },
     customerEmail: {
-      type: DataTypes.STRING,
-      allowNull: false,
+      type: String,
+      required: true,
     },
     customerPhone: {
-      type: DataTypes.STRING,
-      allowNull: false,
+      type: String,
+      required: true,
     },
     shippingAddress: {
-      type: DataTypes.TEXT,
-      allowNull: true,
+      type: String,
+      required: false,
     },
     totalAmount: {
-      type: DataTypes.DECIMAL(10, 2),
-      allowNull: false,
+      type: Number,
+      required: true,
     },
     status: {
-      type: DataTypes.ENUM('pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'),
-      defaultValue: 'pending',
+      type: String,
+      enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'],
+      default: 'pending',
     },
     notes: {
-      type: DataTypes.TEXT,
-      allowNull: true,
+      type: String,
+      required: false,
     },
   },
   {
-    sequelize,
-    tableName: 'orders',
     timestamps: true,
   }
 );
+
+const Order = model<IOrder>('Order', orderSchema);
 
 export default Order;

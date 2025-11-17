@@ -1,7 +1,7 @@
 import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import sequelize from './config/database';
+import connectDB from './config/database';
 
 // Routes
 import categoryRoutes from './routes/categories';
@@ -43,12 +43,7 @@ app.get('/api/health', (req: Request, res: Response) => {
 // Database connection and server start
 const startServer = async () => {
   try {
-    await sequelize.authenticate();
-    console.log('✅ Database connection established successfully');
-
-    // Sync database (create tables if they don't exist)
-    await sequelize.sync({ alter: true });
-    console.log('✅ Database synchronized');
+    await connectDB();
 
     app.listen(PORT, () => {
       console.log(`🚀 Server is running on http://localhost:${PORT}`);

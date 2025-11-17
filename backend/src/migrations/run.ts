@@ -1,15 +1,17 @@
-import sequelize from '../config/database';
+import connectDB, { mongoose } from '../config/database';
 
 const runMigrations = async () => {
   try {
     console.log('🔄 Запуск міграцій...');
 
-    await sequelize.authenticate();
+    await connectDB();
     console.log('✅ Підключено до бази даних');
 
-    await sequelize.sync({ alter: true });
-    console.log('✅ Міграції виконано успішно');
+    // MongoDB doesn't require schema migrations like SQL databases
+    // Indexes are created automatically when models are loaded
+    console.log('✅ Міграції виконано успішно (MongoDB не потребує міграцій схеми)');
 
+    await mongoose.connection.close();
     process.exit(0);
   } catch (error) {
     console.error('❌ Помилка при виконанні міграцій:', error);

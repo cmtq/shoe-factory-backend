@@ -1,13 +1,8 @@
-import sequelize from '../config/database';
+import connectDB, { mongoose } from '../config/database';
 import Category from '../models/Category';
 import Product from '../models/Product';
 import ProductImage from '../models/ProductImage';
 import Inventory from '../models/Inventory';
-
-// Enable SQL logging for this seed script
-(sequelize as any).options.logging = (sql: string) => {
-  console.log('   🔵 SQL:', sql);
-};
 
 const seedData = async () => {
   try {
@@ -16,29 +11,17 @@ const seedData = async () => {
 
     // Connect to database
     console.log('\n📡 Підключення до бази даних...');
-    console.log(`   Database: ${sequelize.config.database}`);
-    console.log(`   Host: ${sequelize.config.host}`);
-    console.log(`   Port: ${sequelize.config.port}`);
-    console.log(`   User: ${sequelize.config.username}`);
-    console.log(`   Password: ${'*'.repeat((sequelize.config.password as string)?.length || 0)}`);
+    await connectDB();
 
-    await sequelize.authenticate();
-    console.log('✅ Підключено до бази даних');
-
-    // Sync models
-    console.log('\n🔨 Синхронізація моделей (force: true - видалення старих таблиць)...');
-
-    // Disable foreign key checks to allow dropping tables with FK constraints
-    console.log('   Вимкнення перевірки зовнішніх ключів...');
-    await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');
-
-    await sequelize.sync({ force: true });
-
-    // Re-enable foreign key checks
-    console.log('   Увімкнення перевірки зовнішніх ключів...');
-    await sequelize.query('SET FOREIGN_KEY_CHECKS = 1');
-
-    console.log('✅ Таблиці створено');
+    // Clear existing data
+    console.log('\n🗑️  Видалення старих даних...');
+    await Promise.all([
+      Inventory.deleteMany({}),
+      ProductImage.deleteMany({}),
+      Product.deleteMany({}),
+      Category.deleteMany({}),
+    ]);
+    console.log('✅ Старі дані видалено');
 
     // Create categories
     console.log('\n📁 Створення категорій...');
@@ -81,15 +64,15 @@ const seedData = async () => {
     ];
 
     console.log(`   Дані для вставки: ${categoriesData.length} категорій`);
-    const categories = await (Category as any).bulkCreate(categoriesData);
+    const categories = await Category.insertMany(categoriesData);
     console.log('✅ Створено категорії');
     console.log(`   Результат: ${categories.length} записів`);
-    categories.forEach((cat: any, idx: number) => {
-      console.log(`   ${idx + 1}. ID: ${cat.id} | Назва: ${cat.name} | Slug: ${cat.slug}`);
+    categories.forEach((cat, idx) => {
+      console.log(`   ${idx + 1}. ID: ${cat._id} | Назва: ${cat.name} | Slug: ${cat.slug}`);
     });
 
     // Verify categories in DB
-    const categoryCount = await (Category as any).count();
+    const categoryCount = await Category.countDocuments();
     console.log(`   🔍 Перевірка в БД: знайдено ${categoryCount} категорій`);
 
     // Create products
@@ -97,7 +80,7 @@ const seedData = async () => {
     const productsData = [
       // Чоловіче взуття
       {
-        categoryId: categories[0].id,
+        categoryId: categories[0]._id,
         name: 'Класичні чоловічі туфлі',
         slug: 'klasychni-cholovichi-tufli',
         description: 'Елегантні туфлі з натуральної шкіри для офісу та урочистих подій',
@@ -108,7 +91,7 @@ const seedData = async () => {
         isCustomizable: true,
       },
       {
-        categoryId: categories[0].id,
+        categoryId: categories[0]._id,
         name: 'Чоловічі кросівки',
         slug: 'cholovichi-krosivky',
         description: 'Зручні спортивні кросівки для активного способу життя',
@@ -118,7 +101,7 @@ const seedData = async () => {
         isCustomizable: false,
       },
       {
-        categoryId: categories[0].id,
+        categoryId: categories[0]._id,
         name: 'Чоловічі черевики',
         slug: 'cholovichi-cherevyky',
         description: 'Теплі зимові черевики з натуральним хутром',
@@ -131,7 +114,7 @@ const seedData = async () => {
 
       // Жіноче взуття
       {
-        categoryId: categories[1].id,
+        categoryId: categories[1]._id,
         name: 'Жіночі туфлі на підборах',
         slug: 'zhinochi-tufli-na-pidborakh',
         description: 'Елегантні туфлі на високих підборах',
@@ -141,7 +124,7 @@ const seedData = async () => {
         isCustomizable: true,
       },
       {
-        categoryId: categories[1].id,
+        categoryId: categories[1]._id,
         name: 'Жіночі балетки',
         slug: 'zhinochi-baletky',
         description: 'Зручні балетки для повсякденного носіння',
@@ -152,7 +135,7 @@ const seedData = async () => {
         isCustomizable: false,
       },
       {
-        categoryId: categories[1].id,
+        categoryId: categories[1]._id,
         name: 'Жіночі чоботи',
         slug: 'zhinochi-choboty',
         description: 'Стильні зимові чоботи',
@@ -164,7 +147,7 @@ const seedData = async () => {
 
       // Літнє взуття
       {
-        categoryId: categories[2].id,
+        categoryId: categories[2]._id,
         name: 'Сандалі',
         slug: 'sandali',
         description: 'Літні сандалі для жаркої погоди',
@@ -174,7 +157,7 @@ const seedData = async () => {
         isCustomizable: false,
       },
       {
-        categoryId: categories[2].id,
+        categoryId: categories[2]._id,
         name: 'В\'єтнамки',
         slug: 'vyetnamky',
         description: 'Зручні в\'єтнамки для пляжу',
@@ -187,7 +170,7 @@ const seedData = async () => {
 
       // Зимове взуття
       {
-        categoryId: categories[3].id,
+        categoryId: categories[3]._id,
         name: 'Уггі',
         slug: 'uggi',
         description: 'Теплі зимові уггі з овчини',
@@ -197,7 +180,7 @@ const seedData = async () => {
         isCustomizable: false,
       },
       {
-        categoryId: categories[3].id,
+        categoryId: categories[3]._id,
         name: 'Зимові кросівки',
         slug: 'zymovi-krosivky',
         description: 'Утеплені кросівки для зими',
@@ -210,7 +193,7 @@ const seedData = async () => {
 
       // Дитяче взуття
       {
-        categoryId: categories[4].id,
+        categoryId: categories[4]._id,
         name: 'Дитячі кросівки',
         slug: 'dytyachi-krosivky',
         description: 'Зручні кросівки для активних дітей',
@@ -220,7 +203,7 @@ const seedData = async () => {
         isCustomizable: false,
       },
       {
-        categoryId: categories[4].id,
+        categoryId: categories[4]._id,
         name: 'Дитячі черевики',
         slug: 'dytyachi-cherevyky',
         description: 'Теплі черевики для дітей',
@@ -233,44 +216,44 @@ const seedData = async () => {
     ];
 
     console.log(`   Дані для вставки: ${productsData.length} товарів`);
-    productsData.forEach((p: any, idx: number) => {
+    productsData.forEach((p, idx) => {
       console.log(`   ${idx + 1}. CategoryID: ${p.categoryId} | SKU: ${p.sku} | Назва: ${p.name} | Ціна: ${p.price}`);
     });
 
-    const products = await (Product as any).bulkCreate(productsData);
+    const products = await Product.insertMany(productsData);
     console.log('✅ Створено товари');
     console.log(`   Результат: ${products.length} записів`);
-    products.forEach((prod: any, idx: number) => {
-      console.log(`   ${idx + 1}. ID: ${prod.id} | SKU: ${prod.sku} | Назва: ${prod.name}`);
+    products.forEach((prod, idx) => {
+      console.log(`   ${idx + 1}. ID: ${prod._id} | SKU: ${prod.sku} | Назва: ${prod.name}`);
     });
 
     // Verify products in DB
-    const productCount = await (Product as any).count();
+    const productCount = await Product.countDocuments();
     console.log(`   🔍 Перевірка в БД: знайдено ${productCount} товарів`);
 
     // Create product images (demo URLs)
     console.log('\n📸 Створення фото товарів...');
     console.log(`   Створення по 3 фото для кожного з ${products.length} товарів...`);
 
-    const imagePromises = products.map((product: any, index: number) => {
-      console.log(`   Товар ${index + 1}/${products.length}: ID ${product.id} - ${product.name}`);
-      return (ProductImage as any).bulkCreate([
+    const imagePromises = products.map((product, index) => {
+      console.log(`   Товар ${index + 1}/${products.length}: ID ${product._id} - ${product.name}`);
+      return ProductImage.insertMany([
         {
-          productId: product.id,
+          productId: product._id,
           imageUrl: `https://via.placeholder.com/500x500?text=${encodeURIComponent(product.name)}+1`,
           altText: `${product.name} - вид 1`,
           sortOrder: 0,
           isMain: true,
         },
         {
-          productId: product.id,
+          productId: product._id,
           imageUrl: `https://via.placeholder.com/500x500?text=${encodeURIComponent(product.name)}+2`,
           altText: `${product.name} - вид 2`,
           sortOrder: 1,
           isMain: false,
         },
         {
-          productId: product.id,
+          productId: product._id,
           imageUrl: `https://via.placeholder.com/500x500?text=${encodeURIComponent(product.name)}+3`,
           altText: `${product.name} - вид 3`,
           sortOrder: 2,
@@ -284,7 +267,7 @@ const seedData = async () => {
     console.log(`   Результат: ${imageResults.length} товарів, по 3 фото = ${imageResults.length * 3} фото`);
 
     // Verify images in DB
-    const imageCount = await (ProductImage as any).count();
+    const imageCount = await ProductImage.countDocuments();
     console.log(`   🔍 Перевірка в БД: знайдено ${imageCount} фото`);
 
     // Create inventory
@@ -300,22 +283,22 @@ const seedData = async () => {
       for (const size of sizes) {
         const quantity = Math.floor(Math.random() * 20) + 5;
         inventoryData.push({
-          productId: product.id,
+          productId: product._id,
           size,
           quantity,
           reservedQuantity: 0,
         });
       }
-      console.log(`   Товар ID ${product.id} (${product.name}): додано ${sizes.length} розмірів`);
+      console.log(`   Товар ID ${product._id} (${product.name}): додано ${sizes.length} розмірів`);
     }
 
     console.log(`   Підготовлено ${inventoryData.length} записів для вставки`);
-    const inventoryResult = await (Inventory as any).bulkCreate(inventoryData);
+    const inventoryResult = await Inventory.insertMany(inventoryData);
     console.log('✅ Додано наявність товарів');
     console.log(`   Результат: ${inventoryResult.length} записів`);
 
     // Verify inventory in DB
-    const inventoryCount = await (Inventory as any).count();
+    const inventoryCount = await Inventory.countDocuments();
     console.log(`   🔍 Перевірка в БД: знайдено ${inventoryCount} записів наявності`);
 
     console.log('\n═══════════════════════════════════════════════════════════════');
@@ -331,50 +314,50 @@ const seedData = async () => {
     console.log('🔍 ФІНАЛЬНА ПЕРЕВІРКА - Реальні дані з БД:');
     console.log('═══════════════════════════════════════════════════════════════');
 
-    const allCategories = await (Category as any).findAll({ raw: true });
+    const allCategories = await Category.find().lean();
     console.log('\n📁 Категорії в БД:');
     if (allCategories.length === 0) {
       console.log('   ⚠️  ПУСТО! Категорій немає в БД!');
     } else {
       allCategories.forEach((cat: any) => {
-        console.log(`   - ID: ${cat.id}, Назва: ${cat.name}, Slug: ${cat.slug}`);
+        console.log(`   - ID: ${cat._id}, Назва: ${cat.name}, Slug: ${cat.slug}`);
       });
     }
 
-    const allProducts = await (Product as any).findAll({ raw: true, limit: 5 });
+    const allProducts = await Product.find().limit(5).lean();
     console.log('\n👟 Товари в БД (перші 5):');
     if (allProducts.length === 0) {
       console.log('   ⚠️  ПУСТО! Товарів немає в БД!');
     } else {
       allProducts.forEach((prod: any) => {
-        console.log(`   - ID: ${prod.id}, SKU: ${prod.sku}, Назва: ${prod.name}, CategoryID: ${prod.categoryId}`);
+        console.log(`   - ID: ${prod._id}, SKU: ${prod.sku}, Назва: ${prod.name}, CategoryID: ${prod.categoryId}`);
       });
     }
 
-    const allImages = await (ProductImage as any).findAll({ raw: true, limit: 5 });
+    const allImages = await ProductImage.find().limit(5).lean();
     console.log('\n📸 Фото в БД (перші 5):');
     if (allImages.length === 0) {
       console.log('   ⚠️  ПУСТО! Фото немає в БД!');
     } else {
       allImages.forEach((img: any) => {
-        console.log(`   - ID: ${img.id}, ProductID: ${img.productId}, Main: ${img.isMain}, URL: ${img.imageUrl.substring(0, 50)}...`);
+        console.log(`   - ID: ${img._id}, ProductID: ${img.productId}, Main: ${img.isMain}, URL: ${img.imageUrl.substring(0, 50)}...`);
       });
     }
 
-    const allInventory = await (Inventory as any).findAll({ raw: true, limit: 10 });
+    const allInventory = await Inventory.find().limit(10).lean();
     console.log('\n📦 Наявність в БД (перші 10):');
     if (allInventory.length === 0) {
       console.log('   ⚠️  ПУСТО! Записів наявності немає в БД!');
     } else {
       allInventory.forEach((inv: any) => {
-        console.log(`   - ID: ${inv.id}, ProductID: ${inv.productId}, Розмір: ${inv.size}, Кількість: ${inv.quantity}`);
+        console.log(`   - ID: ${inv._id}, ProductID: ${inv.productId}, Розмір: ${inv.size}, Кількість: ${inv.quantity}`);
       });
     }
 
     console.log('\n═══════════════════════════════════════════════════════════════\n');
 
     // Disconnect from database
-    await sequelize.close();
+    await mongoose.connection.close();
     console.log('✅ З\'єднання з БД закрито');
 
     process.exit(0);
