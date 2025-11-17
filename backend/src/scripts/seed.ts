@@ -3,6 +3,8 @@ import Category from '../models/Category';
 import Product from '../models/Product';
 import ProductImage from '../models/ProductImage';
 import Inventory from '../models/Inventory';
+import Order from '../models/Order';
+import OrderItem from '../models/OrderItem';
 
 const seedData = async () => {
   try {
@@ -16,12 +18,14 @@ const seedData = async () => {
     // Clear existing data
     console.log('\n🗑️  Видалення старих даних...');
     await Promise.all([
+      OrderItem.deleteMany({}),
+      Order.deleteMany({}),
       Inventory.deleteMany({}),
       ProductImage.deleteMany({}),
       Product.deleteMany({}),
       Category.deleteMany({}),
     ]);
-    console.log('✅ Старі дані видалено');
+    console.log('✅ Старі дані видалено (категорії, товари, фото, наявність, замовлення)');
 
     // Create categories
     console.log('\n📁 Створення категорій...');
@@ -67,7 +71,7 @@ const seedData = async () => {
     const categories = await Category.insertMany(categoriesData);
     console.log('✅ Створено категорії');
     console.log(`   Результат: ${categories.length} записів`);
-    categories.forEach((cat, idx) => {
+    categories.forEach((cat: any, idx: any) => {
       console.log(`   ${idx + 1}. ID: ${cat._id} | Назва: ${cat.name} | Slug: ${cat.slug}`);
     });
 
@@ -216,14 +220,14 @@ const seedData = async () => {
     ];
 
     console.log(`   Дані для вставки: ${productsData.length} товарів`);
-    productsData.forEach((p, idx) => {
+    productsData.forEach((p: any, idx: any) => {
       console.log(`   ${idx + 1}. CategoryID: ${p.categoryId} | SKU: ${p.sku} | Назва: ${p.name} | Ціна: ${p.price}`);
     });
 
     const products = await Product.insertMany(productsData);
     console.log('✅ Створено товари');
     console.log(`   Результат: ${products.length} записів`);
-    products.forEach((prod, idx) => {
+    products.forEach((prod: any, idx: any) => {
       console.log(`   ${idx + 1}. ID: ${prod._id} | SKU: ${prod.sku} | Назва: ${prod.name}`);
     });
 
@@ -235,7 +239,7 @@ const seedData = async () => {
     console.log('\n📸 Створення фото товарів...');
     console.log(`   Створення по 3 фото для кожного з ${products.length} товарів...`);
 
-    const imagePromises = products.map((product, index) => {
+    const imagePromises = products.map((product: any, index: any) => {
       console.log(`   Товар ${index + 1}/${products.length}: ID ${product._id} - ${product.name}`);
       return ProductImage.insertMany([
         {
@@ -324,13 +328,14 @@ const seedData = async () => {
       });
     }
 
-    const allProducts = await Product.find().limit(5).lean();
-    console.log('\n👟 Товари в БД (перші 5):');
+    const allProducts = await Product.find().lean();
+    console.log('\n👟 Товари в БД (ВСІ - копіюйте ID для тестування):');
     if (allProducts.length === 0) {
       console.log('   ⚠️  ПУСТО! Товарів немає в БД!');
     } else {
-      allProducts.forEach((prod: any) => {
-        console.log(`   - ID: ${prod._id}, SKU: ${prod.sku}, Назва: ${prod.name}, CategoryID: ${prod.categoryId}`);
+      allProducts.forEach((prod: any, index: number) => {
+        console.log(`   ${index + 1}. ID: ${prod._id}`);
+        console.log(`      SKU: ${prod.sku}, Назва: ${prod.name}, Ціна: ${prod.price}`);
       });
     }
 
