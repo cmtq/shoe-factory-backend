@@ -3,11 +3,11 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const DB_USER = process.env.DB_USER || 'mongo';
-const DB_PASSWORD = process.env.DB_PASSWORD || 'rb60kgnntzywhuw3';
-const DB_HOST = process.env.DB_HOST || 'shoe-factory-database-uatbqk';
-const DB_PORT = process.env.DB_PORT || '27017';
-const DB_NAME = process.env.DB_NAME || 'shoe_factory';
+const DB_USER = 'mongo';
+const DB_PASSWORD = 'canuscukc6dftf1k';
+const DB_HOST = 'shoe-factory-db-nf3gx9';
+const DB_PORT = '27017';
+const DB_NAME = 'shoe_factory';
 
 const MONGODB_URI = `mongodb://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?authSource=admin`;
 
