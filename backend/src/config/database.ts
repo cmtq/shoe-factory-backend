@@ -9,7 +9,7 @@ const DB_HOST = 'shoe-factory-db-nf3gx9';
 const DB_PORT = '27017';
 const DB_NAME = 'shoe_factory';
 
-const MONGODB_URI = `mongodb://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}?authSource=admin`;
+const MONGODB_URI = `mongodb://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}`;
 
 const connectDB = async () => {
   try {
