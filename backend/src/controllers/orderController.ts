@@ -32,9 +32,15 @@ export const createOrder = async (req: Request, res: Response) => {
 
     const { customerName, customerEmail, customerPhone, shippingAddress, items, notes } = req.body;
 
+    // Normalize items to ensure productId field exists
+    const normalizedItems = items.map((item: any) => ({
+      ...item,
+      productId: item.productId || item.id || item._id || item.product?._id || item.product?.id,
+    }));
+
     // Calculate total amount and check availability
     let totalAmount = 0;
-    for (const item of items) {
+    for (const item of normalizedItems) {
       const product = await Product.findById(item.productId);
       if (!product) {
         if (useTransactions && session) {
@@ -80,7 +86,7 @@ export const createOrder = async (req: Request, res: Response) => {
     const order = Array.isArray(orderDoc) ? orderDoc[0] : orderDoc;
 
     // Create order items and reserve inventory
-    for (const item of items) {
+    for (const item of normalizedItems) {
       const product = await Product.findById(item.productId);
 
       const orderItemData = {
