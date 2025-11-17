@@ -32,11 +32,47 @@ export const createOrder = async (req: Request, res: Response) => {
 
     const { customerName, customerEmail, customerPhone, shippingAddress, items, notes } = req.body;
 
+    // Validate that items array exists and is not empty
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Замовлення має містити хоча б один товар' });
+    }
+
     // Normalize items to ensure productId field exists
-    const normalizedItems = items.map((item: any) => ({
-      ...item,
-      productId: item.productId || item.id || item._id || item.product?._id || item.product?.id,
-    }));
+    const normalizedItems = items.map((item: any, index: number) => {
+      // Try to extract product ID from various possible field names
+      const productId = item.productId ||
+                        item.id ||
+                        item._id ||
+                        item.product_id ||
+                        item.product?._id ||
+                        item.product?.id ||
+                        item.product?.productId;
+
+      // If productId is still undefined, log the item for debugging
+      if (!productId) {
+        console.error(`❌ Item at index ${index} has no valid product ID. Received item:`, JSON.stringify(item, null, 2));
+      }
+
+      return {
+        ...item,
+        productId,
+      };
+    });
+
+    // Validate all items have product IDs before proceeding
+    for (let i = 0; i < normalizedItems.length; i++) {
+      if (!normalizedItems[i].productId) {
+        if (useTransactions && session) {
+          await session.abortTransaction();
+          session.endSession();
+        }
+        const itemKeys = Object.keys(items[i] || {}).join(', ');
+        return res.status(400).json({
+          error: `Товар №${i + 1} не має ID продукту. Отримані поля: ${itemKeys || 'немає полів'}`,
+          receivedItem: items[i]
+        });
+      }
+    }
 
     // Calculate total amount and check availability
     let totalAmount = 0;
