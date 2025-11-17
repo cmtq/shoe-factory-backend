@@ -10,7 +10,9 @@ const sequelize = new Sequelize({
   password: process.env.DB_PASSWORD || 'kmy357lm68k0dgy7',
   database: process.env.DB_NAME || 'mysql',
   dialect: 'mysql',
-  logging: false,
+  logging: process.env.DB_LOGGING === 'true' ? (sql) => {
+    console.log('🔵 SQL:', sql);
+  } : false,
   pool: {
     max: 5,
     min: 0,
