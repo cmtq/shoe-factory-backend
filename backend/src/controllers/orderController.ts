@@ -12,30 +12,48 @@ const generateOrderNumber = () => {
 };
 
 export const createOrder = async (req: Request, res: Response) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  // Try to use transactions if supported (requires replica set)
+  let session: any = null;
+  let useTransactions = false;
 
   try {
+    // Check if transactions are supported
+    if (mongoose.connection.readyState === 1) {
+      try {
+        session = await mongoose.startSession();
+        await session.startTransaction();
+        useTransactions = true;
+      } catch (err) {
+        console.warn('⚠️  Transactions not supported, running without transactions');
+        session = null;
+        useTransactions = false;
+      }
+    }
+
     const { customerName, customerEmail, customerPhone, shippingAddress, items, notes } = req.body;
 
     // Calculate total amount and check availability
     let totalAmount = 0;
     for (const item of items) {
-      const product = await Product.findById(item.productId).session(session);
+      const product = await Product.findById(item.productId);
       if (!product) {
-        await session.abortTransaction();
-        session.endSession();
+        if (useTransactions && session) {
+          await session.abortTransaction();
+          session.endSession();
+        }
         return res.status(404).json({ error: `Товар з ID ${item.productId} не знайдено` });
       }
 
       const inventory = await Inventory.findOne({
         productId: item.productId,
         size: item.size,
-      }).session(session);
+      });
 
       if (!inventory || (inventory.quantity - inventory.reservedQuantity) < item.quantity) {
-        await session.abortTransaction();
-        session.endSession();
+        if (useTransactions && session) {
+          await session.abortTransaction();
+          session.endSession();
+        }
         return res.status(400).json({
           error: `Недостатня кількість товару "${product.name}" розміру ${item.size}`,
         });
@@ -45,52 +63,53 @@ export const createOrder = async (req: Request, res: Response) => {
     }
 
     // Create order
-    const orderDoc = await Order.create(
-      [
-        {
-          orderNumber: generateOrderNumber(),
-          customerName,
-          customerEmail,
-          customerPhone,
-          shippingAddress,
-          totalAmount,
-          notes,
-          status: 'pending',
-        },
-      ],
-      { session }
-    );
-    const order = orderDoc[0];
+    const orderData = {
+      orderNumber: generateOrderNumber(),
+      customerName,
+      customerEmail,
+      customerPhone,
+      shippingAddress,
+      totalAmount,
+      notes,
+      status: 'pending',
+    };
+
+    const orderDoc = useTransactions && session
+      ? await Order.create([orderData], { session })
+      : await Order.create([orderData]);
+    const order = Array.isArray(orderDoc) ? orderDoc[0] : orderDoc;
 
     // Create order items and reserve inventory
     for (const item of items) {
-      const product = await Product.findById(item.productId).session(session);
+      const product = await Product.findById(item.productId);
 
-      await OrderItem.create(
-        [
-          {
-            orderId: order._id,
-            productId: item.productId,
-            productName: product!.name,
-            size: item.size,
-            quantity: item.quantity,
-            price: product!.price,
-            customization: item.customization || null,
-          },
-        ],
-        { session }
-      );
+      const orderItemData = {
+        orderId: order._id,
+        productId: item.productId,
+        productName: product!.name,
+        size: item.size,
+        quantity: item.quantity,
+        price: product!.price,
+        customization: item.customization || null,
+      };
+
+      if (useTransactions && session) {
+        await OrderItem.create([orderItemData], { session });
+      } else {
+        await OrderItem.create([orderItemData]);
+      }
 
       // Reserve inventory
       await Inventory.findOneAndUpdate(
         { productId: item.productId, size: item.size },
-        { $inc: { reservedQuantity: item.quantity } },
-        { session }
+        { $inc: { reservedQuantity: item.quantity } }
       );
     }
 
-    await session.commitTransaction();
-    session.endSession();
+    if (useTransactions && session) {
+      await session.commitTransaction();
+      session.endSession();
+    }
 
     // Fetch complete order with items
     const completeOrder = await Order.findById(order._id).lean();
@@ -101,8 +120,14 @@ export const createOrder = async (req: Request, res: Response) => {
       items: orderItems,
     });
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
+    if (useTransactions && session) {
+      try {
+        await session.abortTransaction();
+        session.endSession();
+      } catch (abortError) {
+        console.error('Error aborting transaction:', abortError);
+      }
+    }
     console.error('Error creating order:', error);
     res.status(500).json({ error: 'Помилка при створенні замовлення' });
   }
