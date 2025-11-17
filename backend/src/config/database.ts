@@ -4,10 +4,10 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const sequelize = new Sequelize({
-  host: process.env.DB_HOST || 'shoefactory-maindb-xnqknj',
+  host: process.env.DB_HOST || 'shoe-factory-mysql-l6j7r9',
   port: parseInt(process.env.DB_PORT || '3306'),
   username: process.env.DB_USER || 'mysql',
-  password: process.env.DB_PASSWORD || 'jomlhltwodv03ccx',
+  password: process.env.DB_PASSWORD || 'kmy357lm68k0dgy7',
   database: process.env.DB_NAME || 'shoe_factory',
   dialect: 'mysql',
   logging: false,
