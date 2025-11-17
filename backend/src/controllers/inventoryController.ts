@@ -5,8 +5,9 @@ import Product from '../models/Product';
 export const getInventoryByProduct = async (req: Request, res: Response) => {
   try {
     const { productId } = req.params;
+    const productIdNum = parseInt(productId, 10);
     const inventory = await Inventory.findAll({
-      where: { productId },
+      where: { productId: productIdNum },
       include: [{
         model: Product,
         as: 'product',
@@ -43,9 +44,12 @@ export const updateInventory = async (req: Request, res: Response) => {
     const { productId, size } = req.params;
     const { quantity } = req.body;
 
+    const productIdNum = parseInt(productId, 10);
+    const sizeNum = parseFloat(size);
+
     const [inventory, created] = await Inventory.findOrCreate({
-      where: { productId, size },
-      defaults: { productId, size, quantity },
+      where: { productId: productIdNum, size: sizeNum },
+      defaults: { productId: productIdNum, size: sizeNum, quantity },
     });
 
     if (!created) {
@@ -83,8 +87,10 @@ export const bulkUpdateInventory = async (req: Request, res: Response) => {
 export const checkAvailability = async (req: Request, res: Response) => {
   try {
     const { productId, size } = req.params;
+    const productIdNum = parseInt(productId, 10);
+    const sizeNum = parseFloat(size);
     const inventory = await Inventory.findOne({
-      where: { productId, size },
+      where: { productId: productIdNum, size: sizeNum },
     });
 
     if (!inventory) {
