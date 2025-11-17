@@ -8,7 +8,7 @@ const sequelize = new Sequelize({
   port: parseInt(process.env.DB_PORT || '3306'),
   username: process.env.DB_USER || 'mysql',
   password: process.env.DB_PASSWORD || 'kmy357lm68k0dgy7',
-  database: process.env.DB_NAME || 'shoe_factory',
+  database: process.env.DB_NAME || 'mysql',
   dialect: 'mysql',
   logging: false,
   pool: {
